@@ -133,11 +133,6 @@ def manifest():
     return send_file(os.path.join(BASE_DIR, 'templates', 'manifest.json'), mimetype='application/manifest+json')
 
 
-@app.route('/sw.js')
-def sw():
-    return send_file(os.path.join(BASE_DIR, 'static', 'sw.js'), mimetype='application/javascript')
-
-
 @app.route('/health')
 def health():
     import shutil
