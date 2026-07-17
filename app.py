@@ -74,6 +74,12 @@ def setup_binaries():
             print("[SETUP] yt-dlp baixado com sucesso.", file=sys.stderr)
         except Exception as e:
             print(f"[SETUP] Erro ao baixar yt-dlp: {e}", file=sys.stderr)
+    else:
+        # Garante permissão de execução mesmo se já existir
+        try:
+            os.chmod(YT_EXE, os.stat(YT_EXE).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        except:
+            pass
 
     # ffmpeg: em Dockerfile já vem via apt; fora disso tentamos baixar estático
     if not os.path.exists(FFMPEG_EXE):
@@ -107,6 +113,21 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/health')
+def health():
+    import shutil
+    info = {
+        'yt_exe': YT_EXE,
+        'yt_exists': os.path.exists(YT_EXE),
+        'yt_exec': os.access(YT_EXE, os.X_OK) if os.path.exists(YT_EXE) else False,
+        'ffmpeg_exe': FFMPEG_EXE,
+        'ffmpeg_exists': os.path.exists(FFMPEG_EXE),
+        'is_windows': IS_WINDOWS,
+        'python': shutil.which('python') or shutil.which('python3'),
+    }
+    return jsonify(info)
+
+
 @app.route('/analisar', methods=['POST'])
 def analisar():
     if not os.path.exists(YT_EXE):
@@ -114,6 +135,8 @@ def analisar():
 
     url = request.json.get('url')
     print(f"[ANALISAR] URL: {url}", file=sys.stderr)
+    print(f"[ANALISAR] YT_EXE={YT_EXE} existe={os.path.exists(YT_EXE)}", file=sys.stderr)
+    print(f"[ANALISAR] FFMPEG_EXE={FFMPEG_EXE} existe={os.path.exists(FFMPEG_EXE)}", file=sys.stderr)
 
     if not url:
         return jsonify({'error': 'URL não fornecida'}), 400
@@ -124,9 +147,10 @@ def analisar():
         print(f"[ANALISAR] Como playlist: {' '.join(cmd)}", file=sys.stderr)
 
         res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
+        print(f"[ANALISAR] rc={res.returncode} stdout={res.stdout[:200]} stderr={res.stderr[:300]}", file=sys.stderr)
 
         if res.returncode != 0 or not res.stdout.strip():
-            raise Exception("Não é playlist ou erro")
+            return jsonify({'error': f'yt-dlp falhou (rc={res.returncode}): {res.stderr[:500]}'}), 400
 
         lines = res.stdout.strip().split('\n')
         entries = []
@@ -170,13 +194,14 @@ def analisar():
         try:
             res = subprocess.run(yt_cmd('--no-playlist', '-j', url),
                                  capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
+            print(f"[ANALISAR] video rc={res.returncode} stderr={res.stderr[:300]}", file=sys.stderr)
 
             if res.returncode != 0:
                 return jsonify({'error': res.stderr or 'Erro ao analisar'}), 400
 
             info = json.loads(res.stdout)
         except Exception as e2:
-            return jsonify({'error': str(e2)}), 500
+            return jsonify({'error': f'Exceção: {str(e2)}'}), 500
 
     formats = []
     for f in info.get('formats', []):
