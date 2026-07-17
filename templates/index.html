@@ -7,6 +7,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <meta name="apple-mobile-web-app-title" content="YT Download">
     <title>YouTube Downloader</title>
     <style>
         * { box-sizing: border-box; }
@@ -219,6 +222,15 @@
         if (location.protocol === 'file:') {
             document.body.innerHTML = '<div class="card"><h2>❌ Erro</h2><p>Por favor, execute o servidor Flask.</p><p>Abra o terminal, navegue até a pasta e execute:<br><code>python app.py</code></p><p>Depois acesse: <strong>http://localhost:5000</strong></p></div>';
             throw new Error('Executando via arquivo. Use o servidor.');
+        }
+
+        // Registrar Service Worker para PWA (Add to Home Screen)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                    console.log('SW registro falhou:', err);
+                });
+            });
         }
 
         let eventSource = null;
