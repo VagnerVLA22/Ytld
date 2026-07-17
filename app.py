@@ -401,10 +401,15 @@ def download_file():
 
     elif last_downloaded_file and os.path.exists(last_downloaded_file):
         file_name = os.path.basename(last_downloaded_file)
-        response = send_file(last_downloaded_file, as_attachment=True, download_name=file_name)
+        try:
+            response = send_file(last_downloaded_file, as_attachment=True, download_name=file_name, conditional=False)
+        except Exception as e:
+            print(f"[DOWNLOAD_FILE] Erro send_file: {e}", file=sys.stderr)
+            return jsonify({'error': f'Erro ao enviar arquivo: {e}'}), 500
 
         def cleanup():
-            time.sleep(1)
+            # Aguarda mais tempo para o send_file transmitir antes de apagar
+            time.sleep(30)
             try:
                 temp_dir = os.path.dirname(last_downloaded_file)
                 if temp_dir in temp_dirs:

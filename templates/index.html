@@ -580,6 +580,7 @@
             btn.disabled = true;
             btn.innerText = '⏳ Baixando...';
             resetProgresso();
+            let concluido = false;
 
             fetch('/baixar', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url, fid})})
                 .catch(err => { mostrarErro('Erro!'); btn.disabled = false; btn.innerText = '⬇️ Baixar Vídeo Único'; });
@@ -593,14 +594,16 @@
                 setStatus(`📊 ${p}%`);
 
                 if (p === '100') {
+                    concluido = true;
                     eventSource.close();
-                    setStatus('✅ Concluído!');
+                    setStatus('✅ Concluído! Baixando arquivo...');
                     btn.disabled = false;
                     btn.innerText = '⬇️ Baixar Vídeo Único';
-                    setTimeout(() => window.location.href = '/download_file', 500);
+                    setTimeout(() => window.location.href = '/download_file', 800);
                 }
             };
             eventSource.onerror = function() {
+                if (concluido) return; // feed fechou no 100, não é erro
                 eventSource.close();
                 mostrarErro('Conexão perdida!');
                 btn.disabled = false;
@@ -610,6 +613,7 @@
 
         function monitorarProgresso(btn, isZIP, isMP3 = false, isSequential = false) {
             if (eventSource) eventSource.close();
+            let concluido = false;
             eventSource = new EventSource('/progresso_feed');
             eventSource.onmessage = function(e) {
                 const p = e.data;
@@ -626,8 +630,9 @@
                 }
 
                 if (p === '100') {
+                    concluido = true;
                     eventSource.close();
-                    if (statusText) statusText.innerText = '✅ Concluído!';
+                    if (statusText) statusText.innerText = '✅ Concluído! Baixando arquivo...';
 
                     if (isSequential) {
                         setTimeout(() => {
@@ -641,12 +646,12 @@
                             }, 1000);
                         }, 500);
                     } else {
-                        if (statusText) statusText.innerText = '✅ Completo! Baixando...';
-                        setTimeout(() => window.location.href = '/download_file', 500);
+                        setTimeout(() => window.location.href = '/download_file', 800);
                     }
                 }
             };
             eventSource.onerror = function() {
+                if (concluido) return; // feed fechou no 100, não é erro
                 eventSource.close();
                 mostrarErro('Erro de conexão!');
                 if (isZIP) {
