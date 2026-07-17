@@ -118,7 +118,7 @@ def yt_cmd(*args):
     """Monta o comando yt-dlp como lista (sem shell=True, sem aspas manuais)."""
     cmd = [YT_EXE]
     if os.path.exists(FFMPEG_EXE):
-        cmd.extend(['--ffmpeg-location', BIN_DIR])
+        cmd.extend(['--ffmpeg-location', os.path.dirname(FFMPEG_EXE)])
     cmd.extend(args)
     return cmd
 
@@ -341,6 +341,7 @@ def iniciar_download():
                         progress_status = "error"
                 else:
                     progress_status = "error"
+                    print(f"[DOWNLOAD] Falha rc={proc.returncode} cmd={' '.join(cmd)}", file=sys.stderr)
             except Exception as e:
                 print(f"Erro download: {e}", file=sys.stderr)
                 progress_status = "error"
