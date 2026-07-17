@@ -20,10 +20,25 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BIN_DIR = os.path.join(BASE_DIR, "bin")
 os.makedirs(BIN_DIR, exist_ok=True)
 
-# Em ambiente local Windows usamos os .exe da pasta; em deploy Linux baixamos os binários
+# Em ambiente local Windows usamos os .exe da pasta; em deploy Linux usamos PATH ou /usr/local/bin
 IS_WINDOWS = sys.platform.startswith("win")
-YT_EXE = os.path.join(BASE_DIR, "yt-dlp.exe") if IS_WINDOWS else os.path.join(BIN_DIR, "yt-dlp")
-FFMPEG_EXE = os.path.join(BASE_DIR, "ffmpeg.exe") if IS_WINDOWS else os.path.join(BIN_DIR, "ffmpeg")
+
+def _find_exe(name, windows_name):
+    if IS_WINDOWS:
+        p = os.path.join(BASE_DIR, windows_name)
+        return p if os.path.exists(p) else windows_name
+    # Linux: procura no PATH, depois /usr/local/bin, depois BIN_DIR
+    import shutil
+    found = shutil.which(name)
+    if found:
+        return found
+    for cand in [f"/usr/local/bin/{name}", os.path.join(BIN_DIR, name)]:
+        if os.path.exists(cand):
+            return cand
+    return os.path.join(BIN_DIR, name)
+
+YT_EXE = _find_exe("yt-dlp", "yt-dlp.exe")
+FFMPEG_EXE = _find_exe("ffmpeg", "ffmpeg.exe")
 
 # Pasta de downloads (em deploy usamos temp, local usamos Downloads\D0_youtube)
 if IS_WINDOWS:
