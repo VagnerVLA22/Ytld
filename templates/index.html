@@ -224,6 +224,15 @@
             throw new Error('Executando via arquivo. Use o servidor.');
         }
 
+        // Registrar Service Worker para PWA (tela cheia no Android)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                    console.log('SW registro falhou:', err);
+                });
+            });
+        }
+
         let eventSource = null;
         let currentData = null;
         let selectedVideos = new Set();
