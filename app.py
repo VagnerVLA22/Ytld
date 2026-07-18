@@ -164,6 +164,26 @@ def status():
     })
 
 
+@app.route('/debug_video')
+def debug_video():
+    import subprocess as sp
+    test_url = request.args.get('url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    fid = request.args.get('fid', '18')
+    cmd = yt_cmd('-f', f'{fid}+bestaudio', '--newline', test_url, '-o', '/tmp/debug_%(title)s.%(ext)s')
+    try:
+        r = sp.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=60)
+        return jsonify({
+            'cmd': ' '.join(cmd),
+            'rc': r.returncode,
+            'stdout': r.stdout[-500:],
+            'stderr': r.stderr[-500:],
+            'ffmpeg': FFMPEG_EXE,
+            'ffmpeg_exists': os.path.exists(FFMPEG_EXE),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
 @app.route('/analisar', methods=['POST'])
 def analisar():
     if not os.path.exists(YT_EXE):
