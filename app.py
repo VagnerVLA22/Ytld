@@ -349,7 +349,9 @@ def iniciar_download():
                     cmd = yt_cmd('--newline', url, '-o', f'{temp_dir}/%(title)s.%(ext)s')
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         text=True, encoding='utf-8', errors='ignore')
+                stderr_log = []
                 for line in proc.stdout:
+                    stderr_log.append(line.strip())
                     match = re.search(r'(\d+\.\d+)%', line)
                     if match:
                         progress_status = match.group(1)
@@ -364,6 +366,7 @@ def iniciar_download():
                 else:
                     progress_status = "error"
                     print(f"[DOWNLOAD] Falha rc={proc.returncode} cmd={' '.join(cmd)}", file=sys.stderr)
+                    print(f"[DOWNLOAD] stderr: {' | '.join(stderr_log[-10:])}", file=sys.stderr)
             except Exception as e:
                 print(f"Erro download: {e}", file=sys.stderr)
                 progress_status = "error"
