@@ -154,6 +154,16 @@ def health():
     return jsonify(info)
 
 
+@app.route('/status')
+def status():
+    return jsonify({
+        'progress': progress_status,
+        'is_playlist': is_playlist_download,
+        'has_file': bool(last_downloaded_file and os.path.exists(last_downloaded_file)),
+        'file': os.path.basename(last_downloaded_file) if last_downloaded_file else None,
+    })
+
+
 @app.route('/analisar', methods=['POST'])
 def analisar():
     if not os.path.exists(YT_EXE):
