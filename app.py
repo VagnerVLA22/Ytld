@@ -308,7 +308,7 @@ def iniciar_download():
                     bitrate = fid.split("-")[1]
                     base_cmd.extend(['-x', '--audio-format', 'mp3', '--audio-quality', bitrate])
                 else:
-                    base_cmd.extend(['-f', f'{fid}+bestaudio/best', '--recode-video', 'mp4'])
+                    base_cmd.extend(['-f', f'{fid}+bestaudio'])
 
                 base_cmd.extend([url, '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s'])
 
@@ -342,7 +342,8 @@ def iniciar_download():
                     cmd = yt_cmd('-x', '--audio-format', 'mp3', '--audio-quality', bitrate,
                                  '--newline', url, '-o', f'{temp_dir}/%(title)s.%(ext)s')
                 elif fid:
-                    cmd = yt_cmd('-f', f'{fid}+bestaudio/best', '--recode-video', 'mp4',
+                    # Baixa o formato de vídeo escolhido + melhor áudio, sem recodificar (evita falha de ffmpeg)
+                    cmd = yt_cmd('-f', f'{fid}+bestaudio',
                                  '--newline', url, '-o', f'{temp_dir}/%(title)s.%(ext)s')
                 else:
                     cmd = yt_cmd('--newline', url, '-o', f'{temp_dir}/%(title)s.%(ext)s')
