@@ -393,33 +393,46 @@ def download_file():
     global last_downloaded_file, temp_dirs, current_playlist, is_playlist_download
 
     if is_playlist_download and current_playlist:
-        memory_file = BytesIO()
-        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file_path in current_playlist:
-                if os.path.exists(file_path):
-                    arcname = os.path.basename(file_path)
-                    zipf.write(file_path, arcname)
+        try:
+            # Cria o ZIP em arquivo temporário em disco (evita estouro de RAM com muitos/grandes arquivos)
+            zip_fd, zip_path = tempfile.mkstemp(suffix='.zip')
+            os.close(zip_fd)
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for file_path in current_playlist:
+                    if os.path.exists(file_path):
+                        arcname = os.path.basename(file_path)
+                        zipf.write(file_path, arcname)
 
-        memory_file.seek(0)
+            zip_size = os.path.getsize(zip_path)
+            print(f"[DOWNLOAD_FILE] ZIP criado: {zip_path} ({zip_size} bytes)", file=sys.stderr)
 
-        def cleanup():
-            time.sleep(1)
-            try:
-                for temp_dir in temp_dirs:
-                    if os.path.exists(temp_dir):
-                        shutil.rmtree(temp_dir)
-                temp_dirs.clear()
-            except:
-                pass
+            def cleanup():
+                # Aguarda o send_file transmitir antes de apagar
+                time.sleep(30)
+                try:
+                    if os.path.exists(zip_path):
+                        os.remove(zip_path)
+                except Exception as e:
+                    print(f"[DOWNLOAD_FILE] Erro ao remover ZIP: {e}", file=sys.stderr)
+                try:
+                    for temp_dir in temp_dirs:
+                        if os.path.exists(temp_dir):
+                            shutil.rmtree(temp_dir)
+                    temp_dirs.clear()
+                except Exception as e:
+                    print(f"[DOWNLOAD_FILE] Erro ao limpar temp: {e}", file=sys.stderr)
 
-        threading.Thread(target=cleanup).start()
+            threading.Thread(target=cleanup).start()
 
-        return send_file(
-            memory_file,
-            mimetype='application/zip',
-            as_attachment=True,
-            download_name='playlist.zip'
-        )
+            return send_file(
+                zip_path,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name='playlist.zip'
+            )
+        except Exception as e:
+            print(f"[DOWNLOAD_FILE] Erro ao criar ZIP: {e}", file=sys.stderr)
+            return jsonify({'error': f'Erro ao gerar ZIP: {e}'}), 500
 
     elif last_downloaded_file and os.path.exists(last_downloaded_file):
         file_name = os.path.basename(last_downloaded_file)
