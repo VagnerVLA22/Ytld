@@ -397,6 +397,8 @@
             }
         }
 
+        let suppressToggle = false;
+
         function renderPlaylist(videos) {
             const listEl = document.getElementById('video-list');
             listEl.innerHTML = '';
@@ -406,9 +408,11 @@
                 const div = document.createElement('div');
                 div.className = 'video-item';
                 div.innerHTML = `
-                    <input type="checkbox" id="vid-${idx}" data-idx="${idx}" onchange="toggleSelection(${idx})">
+                    <input type="checkbox" id="vid-${idx}" data-idx="${idx}">
                     <label for="vid-${idx}" title="${video.title}">${video.title}</label>
                 `;
+                const cb = div.querySelector('input');
+                cb.addEventListener('change', () => toggleSelection(idx));
                 listEl.appendChild(div);
             });
             updateCount();
@@ -416,6 +420,7 @@
         }
 
         function toggleSelection(idx) {
+            if (suppressToggle) return;
             if (selectedVideos.has(idx)) selectedVideos.delete(idx);
             else selectedVideos.add(idx);
             updateCount();
@@ -452,13 +457,16 @@
             const checkboxes = document.querySelectorAll('#video-list input[type="checkbox"]');
             const total = currentData ? currentData.count : 0;
             const allChecked = selectedVideos.size === total;
+            const newState = !allChecked;
 
+            suppressToggle = true;
             checkboxes.forEach(cb => {
-                cb.checked = allChecked;
+                cb.checked = newState;
                 const idx = parseInt(cb.dataset.idx);
-                if (allChecked) selectedVideos.delete(idx);
-                else selectedVideos.add(idx);
+                if (newState) selectedVideos.add(idx);
+                else selectedVideos.delete(idx);
             });
+            suppressToggle = false;
             updateCount();
             updateSelectAllButton();
         }
