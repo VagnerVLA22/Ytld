@@ -119,6 +119,8 @@ def yt_cmd(*args):
     cmd = [YT_EXE]
     if os.path.exists(FFMPEG_EXE):
         cmd.extend(['--ffmpeg-location', os.path.dirname(FFMPEG_EXE)])
+    # User-agent de browser para reduzir bloqueios do YouTube
+    cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'])
     cmd.extend(args)
     return cmd
 

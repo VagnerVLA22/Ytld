@@ -299,7 +299,17 @@
                     body: JSON.stringify({url: url})
                 });
 
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (!res.ok) {
+                    let msg = `Erro ${res.status}`;
+                    try {
+                        const errData = await res.json();
+                        if (errData.error) msg = errData.error;
+                    } catch (e) {}
+                    if (res.status === 400) {
+                        msg = 'YouTube bloqueou a requisição (erro 400). Tente novamente em alguns minutos ou use outro vídeo.';
+                    }
+                    throw new Error(msg);
+                }
 
                 const data = await res.json();
                 currentData = data;
