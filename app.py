@@ -284,7 +284,11 @@ def iniciar_download():
             temp_dirs.append(temp_dir)
             try:
                 cmd = yt_cmd('--yes-playlist', '--newline', url,
-                             '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s')
+                             '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s',
+                             '--concurrent-fragments', '1',  # Evita sobrecarga
+                             '--retries', '3',  # Tenta novamente em caso de falha
+                             '--fragment-retries', '3',
+                             '--retry-sleep', '1')
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         text=True, encoding='utf-8', errors='ignore')
                 for line in proc.stdout:
@@ -318,6 +322,12 @@ def iniciar_download():
                     base_cmd.extend(['--playlist-items', playlist_items])
 
                 base_cmd.append('--yes-playlist')
+
+                # Otimizações para playlists grandes
+                base_cmd.extend(['--concurrent-fragments', '1'])
+                base_cmd.extend(['--retries', '3'])
+                base_cmd.extend(['--fragment-retries', '3'])
+                base_cmd.extend(['--retry-sleep', '1'])
 
                 if fid.startswith("mp3-"):
                     bitrate = fid.split("-")[1]
