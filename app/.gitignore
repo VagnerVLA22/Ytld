@@ -1,0 +1,7 @@
+# Binários locais (Windows) - não vão para o repo
+yt-dlp.exe
+ffmpeg.exe
+bin/
+__pycache__/
+*.pyc
+.env
