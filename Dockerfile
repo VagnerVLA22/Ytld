@@ -2,21 +2,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instala dependências do sistema + Node.js (necessário para yt-dlp descriptografar URLs)
+# Instala dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     ca-certificates \
-    nodejs \
-    npm \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Baixa o yt-dlp no build (internet disponível em build time)
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod +x /usr/local/bin/yt-dlp
+# Instala yt-dlp via pip (já inclui EJS para descriptografar URLs, não precisa de Node.js separado)
+RUN pip install --no-cache-dir yt-dlp
 
 COPY . .
 
