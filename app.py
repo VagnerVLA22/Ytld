@@ -55,13 +55,6 @@ playlist_data = None
 is_playlist_download = False
 last_error = None
 
-# Em deploy (gunicorn), o bloco __main__ não roda, então baixamos os binários na importação
-if not IS_WINDOWS:
-    try:
-        setup_binaries()
-    except Exception as e:
-        print(f"[SETUP] Falha ao preparar binários: {e}", file=sys.stderr)
-
 
 def download_file(url, dest):
     """Baixa um arquivo binário usando requests (sem depender de curl/wget)."""
