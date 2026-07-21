@@ -133,6 +133,12 @@ def yt_cmd(*args):
     cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
     # User-agent de browser atualizado para reduzir bloqueios do YouTube
     cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'])
+    # Timeout maior para conexões lentas e playlists grandes
+    cmd.extend(['--socket-timeout', '30'])
+    cmd.extend(['--retries', '5'])
+    cmd.extend(['--fragment-retries', '5'])
+    cmd.extend(['--retry-sleep', '2'])
+    cmd.extend(['--concurrent-fragments', '1'])
     cmd.extend(args)
     return cmd
 
@@ -284,11 +290,7 @@ def iniciar_download():
             temp_dirs.append(temp_dir)
             try:
                 cmd = yt_cmd('--yes-playlist', '--newline', url,
-                             '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s',
-                             '--concurrent-fragments', '1',  # Evita sobrecarga
-                             '--retries', '3',  # Tenta novamente em caso de falha
-                             '--fragment-retries', '3',
-                             '--retry-sleep', '1')
+                             '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s')
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         text=True, encoding='utf-8', errors='ignore')
                 for line in proc.stdout:
@@ -322,12 +324,6 @@ def iniciar_download():
                     base_cmd.extend(['--playlist-items', playlist_items])
 
                 base_cmd.append('--yes-playlist')
-
-                # Otimizações para playlists grandes
-                base_cmd.extend(['--concurrent-fragments', '1'])
-                base_cmd.extend(['--retries', '3'])
-                base_cmd.extend(['--fragment-retries', '3'])
-                base_cmd.extend(['--retry-sleep', '1'])
 
                 if fid.startswith("mp3-"):
                     bitrate = fid.split("-")[1]
