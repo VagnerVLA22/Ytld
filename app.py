@@ -121,9 +121,17 @@ def yt_cmd(*args):
         cmd.extend(['--ffmpeg-location', os.path.dirname(FFMPEG_EXE)])
     # Evita warning/auto-update e usa clientes alternativos quando o YouTube bloqueia
     cmd.append('--no-update')
-    cmd.extend(['--extractor-args', 'youtube:player_client=android_vr,web_safari,tv'])
-    # User-agent de browser para reduzir bloqueios do YouTube
-    cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'])
+    # Usa múltiplos clients para aumentar chance de sucesso contra bloqueios
+    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb;player_skip=webpage'])
+    # Cabeçalhos HTTP simulando browser real para reduzir bloqueios do YouTube
+    cmd.extend(['--add-header', 'Accept-Language: en-US,en;q=0.9'])
+    cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'])
+    cmd.extend(['--add-header', 'Sec-Fetch-Dest: document'])
+    cmd.extend(['--add-header', 'Sec-Fetch-Mode: navigate'])
+    cmd.extend(['--add-header', 'Sec-Fetch-Site: none'])
+    cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
+    # User-agent de browser atualizado para reduzir bloqueios do YouTube
+    cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'])
     cmd.extend(args)
     return cmd
 
