@@ -53,6 +53,7 @@ temp_dirs = []
 current_playlist = []
 playlist_data = None
 is_playlist_download = False
+last_error = None
 
 # Em deploy (gunicorn), o bloco __main__ não roda, então baixamos os binários na importação
 if not IS_WINDOWS:
@@ -174,6 +175,7 @@ def status():
         'is_playlist': is_playlist_download,
         'has_file': bool(last_downloaded_file and os.path.exists(last_downloaded_file)),
         'file': os.path.basename(last_downloaded_file) if last_downloaded_file else None,
+        'error': last_error,
     })
 
 
@@ -264,7 +266,7 @@ def analisar():
 
 @app.route('/baixar', methods=['POST'])
 def iniciar_download():
-    global progress_status, last_downloaded_file, current_playlist, is_playlist_download
+    global progress_status, last_downloaded_file, current_playlist, is_playlist_download, last_error
     data = request.json
     url = data['url']
     fid = data.get('fid')
@@ -274,7 +276,7 @@ def iniciar_download():
     progress_status = "0.1"
 
     def run():
-        global progress_status, last_downloaded_file, current_playlist, is_playlist_download
+        global progress_status, last_downloaded_file, current_playlist, is_playlist_download, last_error
 
         if download_all and not fid:
             is_playlist_download = True
@@ -371,13 +373,16 @@ def iniciar_download():
                 proc.wait()
                 if proc.returncode == 0:
                     progress_status = "100"
+                    last_error = None
                     files = os.listdir(temp_dir)
                     if files:
                         last_downloaded_file = os.path.join(temp_dir, files[0])
                     else:
                         progress_status = "error"
+                        last_error = "Nenhum arquivo gerado"
                 else:
                     progress_status = "error"
+                    last_error = '\n'.join(stderr_log[-10:])
                     print(f"[DOWNLOAD] Falha rc={proc.returncode} cmd={' '.join(cmd)}", file=sys.stderr)
                     print(f"[DOWNLOAD] stderr: {' | '.join(stderr_log[-10:])}", file=sys.stderr)
             except Exception as e:
