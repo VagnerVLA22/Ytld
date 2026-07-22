@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#121212">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <meta name="apple-mobile-web-app-title" content="YT Download">
+    <title>YouTube Downloader</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #121212;
+            color: #eee;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+        .card {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 550px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        h2 {
+            text-align: center;
+            color: #ff0000;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+        .row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        input {
+            flex: 1;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #111;
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: #ff0000; }
+        button {
+            padding: 14px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            min-height: 48px;
+        }
+        .btn-ana {
+            background: #007bff;
+            color: white;
+            min-width: 100px;
+        }
+        .btn-ana:hover { background: #0056b3; }
+        .btn-dl {
+            background: #28a745;
+            color: white;
+            width: 100%;
+            display: none;
+            margin-top: 15px;
+        }
+        .btn-dl:hover { background: #1e7e34; }
+        select {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            background: #111;
+            color: white;
+            border: 1px solid #333;
+            display: none;
+            margin-top: 15px;
+            font-size: 16px;
+            outline: none;
+        }
+        .prog-cont {
+            margin-top: 25px;
+            display: none;
+            background: #333;
+            height: 24px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        .prog-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff4444);
+            transition: width 0.3s ease;
+            border-radius: 12px;
+        }
+        #status-txt {
+            text-align: center;
+            font-size: 16px;
+            margin-top: 15px;
+            color: #bbb;
+            font-weight: 500;
+        }
+
+        /* Playlist Styles */
+        .video-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #252525;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .video-item:hover { background: #2a2a2a; }
+        .video-item input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #007bff;
+        }
+        .video-item label {
+            flex: 1;
+            cursor: pointer;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #count-display { font-weight: bold; }
+
+        @media (max-width: 768px) {
+            body { padding: 15px; }
+            .card { padding: 20px; }
+            h2 { font-size: 1.4em; margin-bottom: 15px; }
+            .row { flex-direction: column; gap: 12px; }
+            input { padding: 16px; font-size: 16px; }
+            button { width: 100%; padding: 16px; margin: 0; }
+            .btn-ana { margin-bottom: 10px; }
+        }
+        @media (max-width: 480px) {
+            .card { padding: 15px; border-radius: 8px; }
+            h2 { font-size: 1.2em; }
+            input, select { padding: 14px; }
+            button { padding: 14px; font-size: 16px; }
+            #status-txt { font-size: 14px; }
+        }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .card { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🎵 YouTube Downloader</h2>
+
+        <div class="row">
+            <input type="url" id="url" placeholder="Cole o link do YouTube aqui..." autocomplete="off" spellcheck="false">
+            <button class="btn-ana" id="btn-ana" onclick="analisar()">🔍 Analisar</button>
+        </div>
+
+        <select id="formatos">
+            <option value="mp3-128">🎵 MP3 128kbps</option>
+            <option value="mp3-192">🎵 MP3 192kbps</option>
+            <option value="mp3-320">🎵 MP3 320kbps</option>
+        </select>
+
+        <button id="btn-dl" class="btn-dl" onclick="baixar()">⬇️ Baixar Vídeo Único</button>
+
+        <!-- Controles de Playlist -->
+        <div id="playlist-controls" style="display: none; margin-top: 15px;">
+            <div style="margin-bottom: 10px;">
+                <label style="color: #bbb; font-size: 14px; display: block; margin-bottom: 5px;">📽️ Formato para todos os vídeos:</label>
+                <select id="playlist-format" style="width: 100%; padding: 12px; border-radius: 8px; background: #111; color: white; border: 1px solid #333; font-size: 16px; display: none;">
+                    <option value="mp3-128">🎵 MP3 128kbps</option>
+                    <option value="mp3-192">🎵 MP3 192kbps</option>
+                    <option value="mp3-320">🎵 MP3 320kbps</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <button id="btn-select-all" class="btn-ana" onclick="selectAll()" style="background: #17a2b8;">☑️ Selecionar Todos</button>
+                <button id="btn-dl-selection" class="btn-dl" onclick="baixarSelecao()" style="display: block; margin-top: 0;">📥 Baixar Selecionados (<span id="count-display">0</span>)</button>
+                <button id="btn-dl-all" class="btn-dl" onclick="baixarTodos()" style="display: block; margin-top: 0; background: #6610f2;">📦 Baixar Tudo (ZIP)</button>
+                <button id="btn-dl-all-mp3" class="btn-dl" onclick="baixarTodosMP3()" style="display: block; margin-top: 0; background: #e83e8c;">🎵 Baixar Tudo MP3</button>
+            </div>
+
+            <div id="video-list" style="max-height: 250px; overflow-y: auto; background: #1a1a1a; border-radius: 8px; padding: 10px;">
+            </div>
+        </div>
+
+        <div id="prog-cont" class="prog-cont">
+            <div id="bar" class="prog-bar"></div>
+        </div>
+
+        <p id="status-txt">💡 Cole um link do YouTube e clique em "Analisar"</p>
+    </div>
+
+    <script>
+        // Verificar se está rodando em servidor
+        if (location.protocol === 'file:') {
+            document.body.innerHTML = '<div class="card"><h2>❌ Erro</h2><p>Por favor, execute o servidor Flask.</p><p>Abra o terminal, navegue até a pasta e execute:<br><code>python app.py</code></p><p>Depois acesse: <strong>http://localhost:5000</strong></p></div>';
+            throw new Error('Executando via arquivo. Use o servidor.');
+        }
+
+        // Registrar Service Worker para PWA (tela cheia no Android)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                    console.log('SW registro falhou:', err);
+                });
+            });
+        }
+
+        let eventSource = null;
+        let currentData = null;
+        let selectedVideos = new Set();
+        let downloadQueue = [];
+        let currentDownloadIndex = 0;
+        let isDownloading = false;
+
+        // Previne zoom duplo no iOS
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) event.preventDefault();
+            lastTouchEnd = now;
+        }, false);
+
+        // Feedback visual para botões
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('touchstart', () => btn.style.transform = 'scale(0.98)');
+                btn.addEventListener('touchend', () => btn.style.transform = 'scale(1)');
+            });
+        });
+
+        function setStatus(text, color = null) {
+            const el = document.getElementById('status-txt');
+            if (el) {
+                el.innerText = text;
+                if (color) el.style.color = color;
+            }
+        }
+
+        function resetProgresso() {
+            const bar = document.getElementById('bar');
+            const progCont = document.getElementById('prog-cont');
+            if (bar) bar.style.width = '0%';
+            if (progCont) progCont.style.display = 'block';
+            setStatus('🚀 Iniciando...');
+        }
+
+        function mostrarErro(mensagem) {
+            setStatus('❌ ' + mensagem, '#ff6b6b');
+            if (navigator.vibrate) navigator.vibrate(200);
+            setTimeout(() => setStatus('', '#bbb'), 3000);
+        }
+
+        async function analisar() {
+            const url = document.getElementById('url').value.trim();
+            const btn = document.getElementById('btn-ana');
+
+            if (!url) { mostrarErro('Insira um link!'); return; }
+            if (!url.includes('youtube.com') && !url.includes('youtu.be')) { mostrarErro('Link inválido!'); return; }
+
+            btn.innerText = '🔍 Analisando...';
+            btn.disabled = true;
+
+            document.getElementById('playlist-controls').style.display = 'none';
+            document.getElementById('formatos').style.display = 'none';
+            document.getElementById('btn-dl').style.display = 'none';
+
+            try {
+                const res = await fetch('/analisar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: url})
+                });
+
+                if (!res.ok) {
+                    let msg = `Erro ${res.status}`;
+                    try {
+                        const errData = await res.json();
+                        if (errData.error) msg = errData.error;
+                    } catch (e) {}
+                    if (res.status === 400) {
+                        msg = 'YouTube bloqueou a requisição (erro 400). Tente novamente em alguns minutos ou use outro vídeo.';
+                    }
+                    throw new Error(msg);
+                }
+
+                const data = await res.json();
+                currentData = data;
+
+                if (data.error) throw new Error(data.error);
+
+                if (data.type === 'playlist') {
+                    renderPlaylist(data.videos);
+
+                    const formatSelect = document.getElementById('playlist-format');
+                    if (!formatSelect) { console.error('playlist-format não encontrado'); return; }
+                    formatSelect.innerHTML = '';
+
+                    // MP3 options
+                    [{id:'mp3-128',text:'🎵 MP3 128kbps'},{id:'mp3-192',text:'🎵 MP3 192kbps'},{id:'mp3-320',text:'🎵 MP3 320kbps'}].forEach(opt => {
+                        const o = document.createElement('option'); o.value = opt.id; o.text = opt.text; formatSelect.appendChild(o);
+                    });
+
+                    // Video formats if available
+                    if (data.formats && data.formats.length > 0) {
+                        const sep = document.createElement('option'); sep.disabled = true; sep.text = '──────────'; formatSelect.appendChild(sep);
+                        data.formats.forEach(f => {
+                            const o = document.createElement('option'); o.value = f.id; o.text = f.label; formatSelect.appendChild(o);
+                        });
+                    }
+
+                    document.getElementById('playlist-controls').style.display = 'block';
+                    formatSelect.style.display = 'block';
+                    setStatus(`📋 Playlist: ${data.count} vídeos. Formato: ${formatSelect.options[formatSelect.selectedIndex].text}`, '#4dabf7');
+
+                } else {
+                    const sel = document.getElementById('formatos');
+                    if (!sel) { console.error('Select formatos não encontrado'); return; }
+                    
+                    // Recriar opções MP3 manualmente
+                    sel.innerHTML = '';
+                    // Criar opções MP3 diretamente sem objetos intermediários
+                    (function addMP3(val, txt) {
+                        const opt = document.createElement('option');
+                        opt.value = val;
+                        opt.textContent = txt;
+                        sel.appendChild(opt);
+                    })('mp3-128', '🎵 MP3 128kbps (Melhor para voz)');
+                    (function addMP3(val, txt) {
+                        const opt = document.createElement('option');
+                        opt.value = val;
+                        opt.textContent = txt;
+                        sel.appendChild(opt);
+                    })('mp3-192', '🎵 MP3 192kbps (Qualidade boa)');
+                    (function addMP3(val, txt) {
+                        const opt = document.createElement('option');
+                        opt.value = val;
+                        opt.textContent = txt;
+                        sel.appendChild(opt);
+                    })('mp3-320', '🎵 MP3 320kbps (Qualidade máxima)');
+
+                    // Adicionar formatos de vídeo
+                    if (data.formats && Array.isArray(data.formats)) {
+                        // Separador
+                        const sep = document.createElement('option');
+                        sep.disabled = true;
+                        sep.textContent = '──────────';
+                        sel.appendChild(sep);
+
+                        data.formats.forEach(f => {
+                            if (!f) return;
+                            const opt = document.createElement('option');
+                            opt.value = f.id || f.format_id || '';
+                            opt.textContent = f.label || `${f.ext || ''} ${f.resolution || f.format_note || ''}`.trim();
+                            sel.appendChild(opt);
+                        });
+                    }
+
+                    sel.style.display = 'block';
+                    document.getElementById('btn-dl').style.display = 'block';
+                    setStatus('✅ Formatos encontrados! Escolha uma opção.', '#bbb');
+                }
+
+            } catch(e) {
+                console.error(e);
+                mostrarErro(e.message);
+            } finally {
+                btn.innerText = '🔍 Analisar';
+                btn.disabled = false;
+            }
+        }
+
+        let suppressToggle = false;
+
+        function renderPlaylist(videos) {
+            const listEl = document.getElementById('video-list');
+            listEl.innerHTML = '';
+            selectedVideos.clear();
+
+            videos.forEach((video, idx) => {
+                const div = document.createElement('div');
+                div.className = 'video-item';
+                div.innerHTML = `
+                    <input type="checkbox" id="vid-${idx}" data-idx="${idx}">
+                    <label for="vid-${idx}" title="${video.title}">${video.title}</label>
+                `;
+                const cb = div.querySelector('input');
+                cb.addEventListener('change', () => toggleSelection(idx));
+                listEl.appendChild(div);
+            });
+            updateCount();
+            updateSelectAllButton();
+        }
+
+        function toggleSelection(idx) {
+            if (suppressToggle) return;
+            if (selectedVideos.has(idx)) selectedVideos.delete(idx);
+            else selectedVideos.add(idx);
+            updateCount();
+            updateSelectAllButton();
+        }
+
+        function updateCount() {
+            const display = document.getElementById('count-display');
+            if (display) display.innerText = selectedVideos.size;
+
+            // Atualizar texto do botão
+            const btn = document.getElementById('btn-dl-selection');
+            if (btn) {
+                if (selectedVideos.size === 0) {
+                    btn.innerText = '📥 Baixar Selecionados (0)';
+                } else if (selectedVideos.size === 1) {
+                    btn.innerText = '📥 Baixar Selecionado (1)';
+                } else {
+                    btn.innerText = `📥 Baixar Selecionados (${selectedVideos.size}) - ZIP`;
+                }
+            }
+        }
+
+        function updateSelectAllButton() {
+            const total = currentData ? currentData.count : 0;
+            const btn = document.getElementById('btn-select-all');
+            if (!btn) return;
+            if (selectedVideos.size === 0) btn.innerText = '☑️ Selecionar Todos';
+            else if (selectedVideos.size === total) btn.innerText = '🔽 Limpar Seleção';
+            else btn.innerText = `☑️ ${selectedVideos.size}/${total} selecionados`;
+        }
+
+        function selectAll() {
+            const checkboxes = document.querySelectorAll('#video-list input[type="checkbox"]');
+            const total = currentData ? currentData.count : 0;
+            const allChecked = selectedVideos.size === total;
+            const newState = !allChecked;
+
+            suppressToggle = true;
+            checkboxes.forEach(cb => {
+                cb.checked = newState;
+                const idx = parseInt(cb.dataset.idx);
+                if (newState) selectedVideos.add(idx);
+                else selectedVideos.delete(idx);
+            });
+            suppressToggle = false;
+            updateCount();
+            updateSelectAllButton();
+        }
+
+        function baixarSelecao() {
+            if (selectedVideos.size === 0) {
+                mostrarErro('Selecione pelo menos um vídeo!');
+                return;
+            }
+
+            const videos = currentData.videos;
+            const selectedIndices = Array.from(selectedVideos).sort((a, b) => a - b);
+            const formatSelect = document.getElementById('playlist-format');
+            const formato = formatSelect.value;
+
+            const btn = document.getElementById('btn-dl-selection');
+            btn.disabled = true;
+
+            if (selectedVideos.size === 1) {
+                // Apenas 1 vídeo selecionado - baixar individual
+                const idx = selectedIndices[0];
+                const video = videos[idx];
+
+                baixarVideoIndividual(video.url, formato, false);
+            } else {
+                // Múltiplos vídeos selecionados - baixar em ZIP
+                btn.innerText = `⏳ Baixando ${selectedVideos.size} vídeos (ZIP)...`;
+                resetProgresso();
+
+                // Montar payload para download múltiplo
+                const payload = {
+                    url: document.getElementById('url').value.trim(),
+                    download_all: true,
+                    fid: formato,
+                    selected_indices: selectedIndices  // Enviar índices selecionados
+                };
+
+                fetch('/baixar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                }).catch(err => {
+                    mostrarErro('Erro ao iniciar download!');
+                    btn.disabled = false;
+                    btn.innerText = `📥 Baixar Selecionados (${selectedVideos.size})`;
+                });
+
+                monitorarProgresso(btn, true, formato && formato.startsWith('mp3-'));
+            }
+        }
+
+        function processDownloadQueue(btn) {
+            if (currentDownloadIndex >= downloadQueue.length) {
+                btn.disabled = false;
+                setStatus(`✅ ${downloadQueue.length} downloads concluídos!`);
+                setTimeout(() => setStatus(''), 3000);
+                return;
+            }
+
+            const item = downloadQueue[currentDownloadIndex];
+            const total = downloadQueue.length;
+            setStatus(`📥 Baixando ${currentDownloadIndex + 1}/${total}...`);
+            resetProgresso();
+
+            fetch('/baixar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({url: item.url, fid: item.formato, download_all: false})
+            }).catch(err => {
+                console.error('Erro:', err);
+                mostrarErro(`Erro vídeo ${currentDownloadIndex + 1}`);
+                currentDownloadIndex++;
+                setTimeout(() => processDownloadQueue(btn), 500);
+            });
+
+            monitorarProgresso(btn, false, false, true);
+        }
+
+        function advanceQueue() {
+            currentDownloadIndex++;
+            const btn = document.getElementById('btn-dl-selection');
+            processDownloadQueue(btn);
+        }
+
+        function baixarTodos() {
+            const url = document.getElementById('url').value.trim();
+            const formatSelect = document.getElementById('playlist-format');
+            const formato = formatSelect ? formatSelect.value : null;
+            const btn = document.getElementById('btn-dl-all');
+            
+            btn.disabled = true;
+            btn.innerText = '⏳ Baixando ZIP...';
+            resetProgresso();
+
+            const payload = {url, download_all: true};
+            if (formato) payload.fid = formato;
+
+            fetch('/baixar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            })
+            .then(r => {
+                if (!r.ok) throw new Error('Erro');
+                monitorarProgresso(btn, true, !!formato && formato.startsWith('mp3-'));
+            })
+            .catch(err => {
+                mostrarErro(err.message);
+                btn.disabled = false;
+                btn.innerText = '📦 Baixar Tudo (ZIP)';
+            });
+        }
+
+        function baixarTodosMP3() {
+            const url = document.getElementById('url').value.trim();
+            const formatSelect = document.getElementById('playlist-format');
+            const formato = formatSelect ? formatSelect.value : 'mp3-128';
+
+            if (!formato.startsWith('mp3-')) { mostrarErro('Selecione MP3!'); return; }
+
+            const btn = document.getElementById('btn-dl-all-mp3');
+            btn.disabled = true;
+            btn.innerText = '⏳ Baixando MP3...';
+            resetProgresso();
+
+            fetch('/baixar', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url, download_all: true, fid: formato})})
+                .then(r => { if (!r.ok) throw new Error('Erro'); monitorarProgresso(btn, true, true); })
+                .catch(err => { mostrarErro(err.message); btn.disabled = false; btn.innerText = '🎵 Baixar Tudo MP3'; });
+        }
+
+        function baixar() {
+            const url = document.getElementById('url').value.trim();
+            const fid = document.getElementById('formatos').value;
+            const btn = document.getElementById('btn-dl');
+
+            if (!url || !fid) { mostrarErro('Selecione um formato!'); return; }
+
+            btn.disabled = true;
+            btn.innerText = '⏳ Baixando...';
+            resetProgresso();
+            let concluido = false;
+
+            fetch('/baixar', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url, fid})})
+                .catch(err => { mostrarErro('Erro!'); btn.disabled = false; btn.innerText = '⬇️ Baixar Vídeo Único'; });
+
+            if (eventSource) eventSource.close();
+            eventSource = new EventSource('/progresso_feed');
+            eventSource.onmessage = function(e) {
+                const p = e.data;
+                const bar = document.getElementById('bar');
+                if (bar) bar.style.width = p + '%';
+                setStatus(`📊 ${p}%`);
+
+                if (p === '100') {
+                    concluido = true;
+                    eventSource.close();
+                    setStatus('✅ Concluído! Baixando arquivo...');
+                    btn.disabled = false;
+                    btn.innerText = '⬇️ Baixar Vídeo Único';
+                    setTimeout(() => window.location.href = '/download_file', 800);
+                }
+            };
+            eventSource.onerror = function() {
+                if (concluido) return; // feed fechou no 100, não é erro
+                eventSource.close();
+                mostrarErro('Conexão perdida!');
+                btn.disabled = false;
+                btn.innerText = '⬇️ Baixar Vídeo Único';
+            };
+        }
+
+        function monitorarProgresso(btn, isZIP, isMP3 = false, isSequential = false) {
+            if (eventSource) eventSource.close();
+            let concluido = false;
+            eventSource = new EventSource('/progresso_feed');
+            eventSource.onmessage = function(e) {
+                const p = e.data;
+                const bar = document.getElementById('bar');
+                const statusText = document.getElementById('status-txt');
+                if (bar) bar.style.width = p + '%';
+
+                if (statusText) {
+                    if (isSequential && downloadQueue.length > 1) {
+                        statusText.innerText = `📊 ${currentDownloadIndex + 1}/${downloadQueue.length} - ${p}%`;
+                    } else {
+                        statusText.innerText = `📊 ${p}%`;
+                    }
+                }
+
+                if (p === '100') {
+                    concluido = true;
+                    eventSource.close();
+                    if (statusText) statusText.innerText = '✅ Concluído! Baixando arquivo...';
+
+                    if (isSequential) {
+                        setTimeout(() => {
+                            const iframe = document.createElement('iframe');
+                            iframe.style.display = 'none';
+                            iframe.src = '/download_file';
+                            document.body.appendChild(iframe);
+                            setTimeout(() => {
+                                document.body.removeChild(iframe);
+                                advanceQueue();
+                            }, 1000);
+                        }, 500);
+                    } else {
+                        setTimeout(() => window.location.href = '/download_file', 800);
+                    }
+                }
+            };
+            eventSource.onerror = function() {
+                if (concluido) return; // feed fechou no 100, não é erro
+                eventSource.close();
+                mostrarErro('Erro de conexão!');
+                if (isZIP) {
+                    const b = document.getElementById('btn-dl-all');
+                    if (b) b.disabled = false, b.innerText = '📦 Baixar Tudo (ZIP)';
+                } else if (isMP3) {
+                    const b = document.getElementById('btn-dl-all-mp3');
+                    if (b) b.disabled = false, b.innerText = '🎵 Baixar Tudo MP3';
+                } else if (isSequential) {
+                    advanceQueue();
+                } else {
+                    const sel = document.getElementById('formatos');
+                    // Guardar opções MP3 antes de limpar
+                    const mp3Values = [];
+                    Array.from(sel.options).forEach(opt => {
+                        if (opt.value.startsWith('mp3-')) {
+                            mp3Values.push({value: opt.value, text: opt.text});
+                        }
+                    });
+                    sel.innerHTML = '';
+                    mp3Values.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.value;
+                        opt.text = v.text;
+                        sel.appendChild(opt);
+                    });
+
+                    data.formats.forEach(f => {
+                        const opt = document.createElement('option');
+                        opt.value = f.id;
+                        opt.text = f.label;
+                        sel.appendChild(opt);
+                    });
+
+                    sel.style.display = 'block';
+                    document.getElementById('btn-dl').style.display = 'block';
+                    setStatus('✅ Formatos encontrados! Escolha uma opção.', '#bbb');
+                }
+            };
+        }
+    </script>
+</body>
+</html>
