@@ -55,13 +55,6 @@ playlist_data = None
 is_playlist_download = False
 last_error = None
 
-# Em deploy (gunicorn), o bloco __main__ não roda, então baixamos os binários na importação
-if not IS_WINDOWS:
-    try:
-        setup_binaries()
-    except Exception as e:
-        print(f"[SETUP] Falha ao preparar binários: {e}", file=sys.stderr)
-
 
 def download_file(url, dest):
     """Baixa um arquivo binário usando requests (sem depender de curl/wget)."""
@@ -123,16 +116,32 @@ def yt_cmd(*args):
     # Evita warning/auto-update e usa clientes alternativos quando o YouTube bloqueia
     cmd.append('--no-update')
     # Usa múltiplos clients para aumentar chance de sucesso contra bloqueios
-    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb;player_skip=webpage'])
+    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator;player_skip=webpage'])
     # Cabeçalhos HTTP simulando browser real para reduzir bloqueios do YouTube
-    cmd.extend(['--add-header', 'Accept-Language: en-US,en;q=0.9'])
-    cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'])
+    cmd.extend(['--add-header', 'Accept-Language: en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7'])
+    cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'])
+    cmd.extend(['--add-header', 'Accept-Encoding: gzip, deflate, br'])
+    cmd.extend(['--add-header', 'Cache-Control: no-cache'])
+    cmd.extend(['--add-header', 'Pragma: no-cache'])
     cmd.extend(['--add-header', 'Sec-Fetch-Dest: document'])
     cmd.extend(['--add-header', 'Sec-Fetch-Mode: navigate'])
     cmd.extend(['--add-header', 'Sec-Fetch-Site: none'])
     cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
+    cmd.extend(['--add-header', 'Upgrade-Insecure-Requests: 1'])
     # User-agent de browser atualizado para reduzir bloqueios do YouTube
-    cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'])
+    cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'])
+    # Força IPv4 para evitar problemas de DNS/IPv6 que podem causar bloqueios
+    cmd.extend(['--force-ipv4'])
+    # Timeout maior para conexões lentas e playlists grandes
+    cmd.extend(['--socket-timeout', '30'])
+    cmd.extend(['--retries', '5'])
+    cmd.extend(['--fragment-retries', '5'])
+    cmd.extend(['--retry-sleep', '2'])
+    cmd.extend(['--concurrent-fragments', '1'])
+    # Suporte a cookies opcional (arquivo cookies.txt na raiz)
+    cookies_path = os.path.join(BASE_DIR, 'cookies.txt')
+    if os.path.exists(cookies_path):
+        cmd.extend(['--cookies', cookies_path])
     cmd.extend(args)
     return cmd
 
@@ -272,6 +281,7 @@ def iniciar_download():
     fid = data.get('fid')
     download_all = data.get('download_all', False)
     selected_indices = data.get('selected_indices')
+    batch_size = data.get('batch_size', 50)  # Padrão: 50 vídeos por lote
 
     progress_status = "0.1"
 
