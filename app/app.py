@@ -116,7 +116,7 @@ def yt_cmd(*args):
     # Evita warning/auto-update e usa clientes alternativos quando o YouTube bloqueia
     cmd.append('--no-update')
     # Usa múltiplos clients para aumentar chance de sucesso contra bloqueios
-    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator;player_skip=webpage'])
+    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator,ios_creator,android_creator;player_skip=webpage,configs'])
     # Cabeçalhos HTTP simulando browser real para reduzir bloqueios do YouTube
     cmd.extend(['--add-header', 'Accept-Language: en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7'])
     cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'])
@@ -128,10 +128,19 @@ def yt_cmd(*args):
     cmd.extend(['--add-header', 'Sec-Fetch-Site: none'])
     cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
     cmd.extend(['--add-header', 'Upgrade-Insecure-Requests: 1'])
+    cmd.extend(['--add-header', 'DNT: 1'])
+    cmd.extend(['--add-header', 'Connection: keep-alive'])
+    cmd.extend(['--add-header', 'Sec-GPC: 1'])
     # User-agent de browser atualizado para reduzir bloqueios do YouTube
     cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'])
+    # Referer e Origin simulando navegação direta no YouTube
+    cmd.extend(['--referer', 'https://www.youtube.com/'])
+    cmd.extend(['--origin', 'https://www.youtube.com'])
     # Força IPv4 para evitar problemas de DNS/IPv6 que podem causar bloqueios
     cmd.extend(['--force-ipv4'])
+    # Contorna restrições geográficas e de certificado
+    cmd.extend(['--geo-bypass'])
+    cmd.extend(['--no-check-certificates'])
     # Timeout maior para conexões lentas e playlists grandes
     cmd.extend(['--socket-timeout', '30'])
     cmd.extend(['--retries', '5'])
