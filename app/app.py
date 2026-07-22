@@ -56,7 +56,7 @@ is_playlist_download = False
 last_error = None
 
 
-def download_file(url, dest):
+def download_binary_file(url, dest):
     """Baixa um arquivo binário usando requests (sem depender de curl/wget)."""
     import requests
     print(f"[SETUP] Baixando {url} -> {dest}", file=sys.stderr)
@@ -78,7 +78,7 @@ def setup_binaries():
     # yt-dlp (Linux)
     if not os.path.exists(YT_EXE):
         try:
-            download_file("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp", YT_EXE)
+            download_binary_file("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp", YT_EXE)
             os.chmod(YT_EXE, os.stat(YT_EXE).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
             print("[SETUP] yt-dlp baixado com sucesso.", file=sys.stderr)
         except Exception as e:
@@ -93,15 +93,15 @@ def setup_binaries():
     # ffmpeg: em Dockerfile já vem via apt; fora disso tentamos baixar estático
     if not os.path.exists(FFMPEG_EXE):
         try:
-            ffmpeg_zip = os.path.join(BIN_DIR, "ffmpeg.zip")
-            download_file("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz", ffmpeg_zip)
+            ffmpeg_archive = os.path.join(BIN_DIR, "ffmpeg.tar.xz")
+            download_binary_file("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz", ffmpeg_archive)
             import tarfile
-            with tarfile.open(ffmpeg_zip) as tar:
+            with tarfile.open(ffmpeg_archive) as tar:
                 for member in tar.getmembers():
                     if member.name.endswith("ffmpeg"):
                         member.name = "ffmpeg"
                         tar.extract(member, BIN_DIR)
-            os.remove(ffmpeg_zip)
+            os.remove(ffmpeg_archive)
             os.chmod(FFMPEG_EXE, os.stat(FFMPEG_EXE).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
             print("[SETUP] ffmpeg baixado com sucesso.", file=sys.stderr)
         except Exception as e:
@@ -116,31 +116,12 @@ def yt_cmd(*args):
     # Evita warning/auto-update e usa clientes alternativos quando o YouTube bloqueia
     cmd.append('--no-update')
     # Usa múltiplos clients para aumentar chance de sucesso contra bloqueios
-    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator,ios_creator,android_creator;player_skip=webpage,configs'])
+    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator,ios_creator,android_creator'])
     # Cabeçalhos HTTP simulando browser real para reduzir bloqueios do YouTube
     cmd.extend(['--add-header', 'Accept-Language: en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7'])
     cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'])
-    cmd.extend(['--add-header', 'Accept-Encoding: gzip, deflate, br'])
-    cmd.extend(['--add-header', 'Cache-Control: no-cache'])
-    cmd.extend(['--add-header', 'Pragma: no-cache'])
-    cmd.extend(['--add-header', 'Sec-Fetch-Dest: document'])
-    cmd.extend(['--add-header', 'Sec-Fetch-Mode: navigate'])
-    cmd.extend(['--add-header', 'Sec-Fetch-Site: none'])
-    cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
-    cmd.extend(['--add-header', 'Upgrade-Insecure-Requests: 1'])
-    cmd.extend(['--add-header', 'DNT: 1'])
-    cmd.extend(['--add-header', 'Connection: keep-alive'])
-    cmd.extend(['--add-header', 'Sec-GPC: 1'])
     # User-agent de browser atualizado para reduzir bloqueios do YouTube
     cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'])
-    # Referer e Origin simulando navegação direta no YouTube
-    cmd.extend(['--referer', 'https://www.youtube.com/'])
-    cmd.extend(['--origin', 'https://www.youtube.com'])
-    # Força IPv4 para evitar problemas de DNS/IPv6 que podem causar bloqueios
-    cmd.extend(['--force-ipv4'])
-    # Contorna restrições geográficas e de certificado
-    cmd.extend(['--geo-bypass'])
-    cmd.extend(['--no-check-certificates'])
     # Timeout maior para conexões lentas e playlists grandes
     cmd.extend(['--socket-timeout', '30'])
     cmd.extend(['--retries', '5'])
@@ -485,7 +466,7 @@ def download_file():
                 if temp_dir in temp_dirs:
                     shutil.rmtree(temp_dir)
                     temp_dirs.remove(temp_dir)
-                last_downloaded_file = None
+                    last_downloaded_file = None
             except:
                 pass
 
