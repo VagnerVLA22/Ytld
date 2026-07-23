@@ -490,7 +490,7 @@
                 const idx = selectedIndices[0];
                 const video = videos[idx];
 
-                baixarVideoIndividual(video.url, formato, false);
+                baixarVideoIndividual(video.url, formato, btn);
             } else {
                 // Múltiplos vídeos selecionados - baixar em ZIP
                 btn.innerText = `⏳ Baixando ${selectedVideos.size} vídeos (ZIP)...`;
@@ -597,6 +597,50 @@
                 .catch(err => { mostrarErro(err.message); btn.disabled = false; btn.innerText = '🎵 Baixar Tudo MP3'; });
         }
 
+        function baixarVideoIndividual(url, fid, btn) {
+            if (!url || !fid) { mostrarErro('Selecione um formato!'); return; }
+
+            btn.disabled = true;
+            btn.innerText = '⏳ Baixando...';
+            resetProgresso();
+            let concluido = false;
+
+            fetch('/baixar', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url, fid})})
+                .then(r => {
+                    if (!r.ok) throw new Error('Erro ao iniciar download');
+                })
+                .catch(err => {
+                    mostrarErro('Erro ao iniciar download!');
+                    btn.disabled = false;
+                    if (btn) btn.innerText = '⬇️ Baixar Vídeo Único';
+                });
+
+            if (eventSource) eventSource.close();
+            eventSource = new EventSource('/progresso_feed');
+            eventSource.onmessage = function(e) {
+                const p = e.data;
+                const bar = document.getElementById('bar');
+                if (bar) bar.style.width = p + '%';
+                setStatus(`📊 ${p}%`);
+
+                if (p === '100') {
+                    concluido = true;
+                    eventSource.close();
+                    setStatus('✅ Concluído! Baixando arquivo...');
+                    btn.disabled = false;
+                    btn.innerText = '⬇️ Baixar Vídeo Único';
+                    setTimeout(() => window.location.href = '/download_file', 800);
+                }
+            };
+            eventSource.onerror = function() {
+                if (concluido) return; // feed fechou no 100, não é erro
+                eventSource.close();
+                mostrarErro('Conexão perdida!');
+                btn.disabled = false;
+                btn.innerText = '⬇️ Baixar Vídeo Único';
+            };
+        }
+
         function baixar() {
             const url = document.getElementById('url').value.trim();
             const fid = document.getElementById('formatos').value;
@@ -610,7 +654,14 @@
             let concluido = false;
 
             fetch('/baixar', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url, fid})})
-                .catch(err => { mostrarErro('Erro!'); btn.disabled = false; btn.innerText = '⬇️ Baixar Vídeo Único'; });
+                .then(r => {
+                    if (!r.ok) throw new Error('Erro ao iniciar download');
+                })
+                .catch(err => {
+                    mostrarErro('Erro ao iniciar download!');
+                    btn.disabled = false;
+                    btn.innerText = '⬇️ Baixar Vídeo Único';
+                });
 
             if (eventSource) eventSource.close();
             eventSource = new EventSource('/progresso_feed');
@@ -706,15 +757,19 @@
                         sel.appendChild(opt);
                     });
 
-                    data.formats.forEach(f => {
-                        const opt = document.createElement('option');
-                        opt.value = f.id;
-                        opt.text = f.label;
-                        sel.appendChild(opt);
-                    });
+                    // Usar currentData ao invés de data (que não existe neste escopo)
+                    if (currentData && currentData.formats) {
+                        currentData.formats.forEach(f => {
+                            const opt = document.createElement('option');
+                            opt.value = f.id;
+                            opt.text = f.label;
+                            sel.appendChild(opt);
+                        });
+                    }
 
                     sel.style.display = 'block';
-                    document.getElementById('btn-dl').style.display = 'block';
+                    const btnDl = document.getElementById('btn-dl');
+                    if (btnDl) btnDl.style.display = 'block';
                     setStatus('✅ Formatos encontrados! Escolha uma opção.', '#bbb');
                 }
             };

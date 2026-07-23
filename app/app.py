@@ -304,36 +304,43 @@ def iniciar_download():
             temp_dirs.append(temp_dir)
             try:
                 # Process playlist in batches
-                item_count = 0
-                # First get total items count
-                item_cmd = yt_cmd('--yes-playlist', '--newline', url)
-                item_proc = subprocess.Popen(item_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
-                for line in item_proc.stdout:
-                    item_count += 1
-
-                # Process in batches
-                for i in range(0, item_count, batch_size):
-                    start = i + 1
-                    end = min(i + batch_size, item_count)
-                    batch_cmd = yt_cmd('--yes-playlist', '--newline', url, '--playlist-items', f'{start}-{end}', '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s')
-                    batch_proc = subprocess.Popen(batch_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
-                    for line in batch_proc.stdout:
-                        match = re.search(r'(\d+\.\d+)%', line)
-                        if match:
-                            progress_status = match.group(1)
-                    batch_proc.wait()
-                    if batch_proc.returncode != 0:
-                        progress_status = 'error'
-                        break
-                
-                if progress_status != 'error':
-                    progress_status = "100"
-                    files = sorted(os.listdir(temp_dir))
-                    if files:
-                        current_playlist = [os.path.join(temp_dir, f) for f in files]
-                        last_downloaded_file = temp_dir
-                    else:
-                        progress_status = "error"
+                    # First get total items count using JSON output for accuracy
+                    item_cmd = yt_cmd('--yes-playlist', '--print-json', url)
+                    item_proc = subprocess.Popen(item_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
+                    item_count = 0
+                    for line in item_proc.stdout:
+                        if line.strip():
+                            try:
+                                json.loads(line.strip())
+                                item_count += 1
+                            except:
+                                pass
+                    item_proc.wait()
+                    
+                    # Process in batches
+                    for i in range(0, item_count, batch_size):
+                        start = i + 1
+                        end = min(i + batch_size, item_count)
+                        # For playlist without specific format, use best video+audio
+                        batch_cmd = yt_cmd('--yes-playlist', '--newline', url, '--playlist-items', f'{start}-{end}', '-f', 'bestvideo+bestaudio/best', '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s')
+                        batch_proc = subprocess.Popen(batch_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
+                        for line in batch_proc.stdout:
+                            match = re.search(r'(\d+\.\d+)%', line)
+                            if match:
+                                progress_status = match.group(1)
+                        batch_proc.wait()
+                        if batch_proc.returncode != 0:
+                            progress_status = 'error'
+                            break
+                    
+                    if progress_status != 'error':
+                        progress_status = "100"
+                        files = sorted(os.listdir(temp_dir))
+                        if files:
+                            current_playlist = [os.path.join(temp_dir, f) for f in files]
+                            last_downloaded_file = temp_dir
+                        else:
+                            progress_status = "error"
             except Exception as e:
                 print(f"Erro playlist: {e}", file=sys.stderr)
                 progress_status = "error"
@@ -344,12 +351,18 @@ def iniciar_download():
             temp_dirs.append(temp_dir)
             try:
                 # Process playlist in batches
-                item_count = 0
-                # First get total items count
-                item_cmd = yt_cmd('--yes-playlist', '--newline', url)
+                # First get total items count using JSON output for accuracy
+                item_cmd = yt_cmd('--yes-playlist', '--print-json', url)
                 item_proc = subprocess.Popen(item_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
+                item_count = 0
                 for line in item_proc.stdout:
-                    item_count += 1
+                    if line.strip():
+                        try:
+                            json.loads(line.strip())
+                            item_count += 1
+                        except:
+                            pass
+                item_proc.wait()
 
                 # Process in batches
                 for i in range(0, item_count, batch_size):
@@ -374,7 +387,8 @@ def iniciar_download():
                             bitrate = '0'
                         base_cmd.extend(['-x', '--audio-format', 'mp3', '--audio-quality', bitrate])
                     else:
-                        base_cmd.extend(['-f', f'{fid}+bestaudio'])
+                        # Use format selector that handles video+audio merge properly
+                        base_cmd.extend(['-f', f'{fid}+bestaudio/best'])
                     
                     base_cmd.extend([url, '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s'])
                     
@@ -420,7 +434,8 @@ def iniciar_download():
                                  '--newline', url, '-o', f'{temp_dir}/%(title)s.%(ext)s')
                 elif fid:
                     # Baixa o formato de vídeo escolhido + melhor áudio, sem recodificar (evita falha de ffmpeg)
-                    cmd = yt_cmd('-f', f'{fid}+bestaudio',
+                    # Use format selector that handles video+audio merge properly
+                    cmd = yt_cmd('-f', f'{fid}+bestaudio/best',
                                  '--newline', url, '-o', f'{temp_dir}/%(title)s.%(ext)s')
                 else:
                     cmd = yt_cmd('--newline', url, '-o', f'{temp_dir}/%(title)s.%(ext)s')
