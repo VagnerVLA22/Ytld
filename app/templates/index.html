@@ -753,7 +753,7 @@
                     mp3Values.forEach(v => {
                         const opt = document.createElement('option');
                         opt.value = v.value;
-                        opt.text = v.text;
+                        opt.textContent = v.text;
                         sel.appendChild(opt);
                     });
 
@@ -762,7 +762,7 @@
                         currentData.formats.forEach(f => {
                             const opt = document.createElement('option');
                             opt.value = f.id;
-                            opt.text = f.label;
+                            opt.textContent = f.label;
                             sel.appendChild(opt);
                         });
                     }

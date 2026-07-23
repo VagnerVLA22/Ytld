@@ -28,7 +28,6 @@ def _find_exe(name, windows_name):
         p = os.path.join(BASE_DIR, windows_name)
         return p if os.path.exists(p) else windows_name
     # Linux: procura no PATH, depois /usr/local/bin, depois BIN_DIR
-    import shutil
     found = shutil.which(name)
     if found:
         return found
@@ -58,7 +57,6 @@ last_error = None
 
 def download_binary_file(url, dest):
     """Baixa um arquivo binário usando requests (sem depender de curl/wget)."""
-    import requests
     print(f"[SETUP] Baixando {url} -> {dest}", file=sys.stderr)
     with requests.get(url, stream=True, timeout=60) as r:
         r.raise_for_status()
@@ -174,7 +172,6 @@ def sw():
 
 @app.route('/health')
 def health():
-    import shutil
     info = {
         'yt_exe': YT_EXE,
         'yt_exists': os.path.exists(YT_EXE),
@@ -305,7 +302,7 @@ def iniciar_download():
             try:
                 # Process playlist in batches
                     # First get total items count using JSON output for accuracy
-                    item_cmd = yt_cmd('--yes-playlist', '--print-json', url)
+                    item_cmd = yt_cmd('--yes-playlist', '--flat-playlist', '--print-json', url)
                     item_proc = subprocess.Popen(item_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
                     item_count = 0
                     for line in item_proc.stdout:
@@ -352,7 +349,7 @@ def iniciar_download():
             try:
                 # Process playlist in batches
                 # First get total items count using JSON output for accuracy
-                item_cmd = yt_cmd('--yes-playlist', '--print-json', url)
+                item_cmd = yt_cmd('--yes-playlist', '--flat-playlist', '--print-json', url)
                 item_proc = subprocess.Popen(item_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
                 item_count = 0
                 for line in item_proc.stdout:
@@ -380,8 +377,8 @@ def iniciar_download():
                     base_cmd.append('--yes-playlist')
                     
                     if fid.startswith("mp3-"):
-                        bitrate = fid.split("-")[1]
-                        if bitrate.isdigit() and not bitrate.endswith(('k', 'K')):
+                        bitrate = fid.split("-")[1] if len(fid.split("-")) > 1 else '0'
+                        if bitrate.isdigit():
                             bitrate = bitrate + 'k'
                         else:
                             bitrate = '0'
@@ -422,11 +419,13 @@ def iniciar_download():
                 if fid and fid.startswith("mp3-"):
                     # Extract bitrate from fid (e.g., "mp3-128" -> "128")
                     parts = fid.split("-")
-                    if len(parts) >= 2:
-                        bitrate = parts[1]
+                    if len(parts) >= 2 and parts[1].strip():
+                        bitrate = parts[1].strip()
                         # Ensure bitrate has proper format for yt-dlp (e.g., "128" -> "128k")
-                        if bitrate.isdigit() and not bitrate.endswith(('k', 'K')):
+                        if bitrate.isdigit():
                             bitrate = bitrate + 'k'
+                        else:
+                            bitrate = '0'
                     else:
                         # Fallback to default quality if format is unexpected
                         bitrate = '0'  # Best quality

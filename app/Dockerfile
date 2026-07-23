@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir yt-dlp yt-dlp-ejs
 COPY . .
 
 # Porta padrão (Railway/Koyeb usam $PORT)
-ENV PORT=5000
-EXPOSE $PORT
+# ENV PORT=5000  # Removido: provedores definem $PORT automaticamente
+EXPOSE 5000
 
 CMD gunicorn app:app --bind 0.0.0.0:$PORT
