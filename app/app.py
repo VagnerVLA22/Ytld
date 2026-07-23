@@ -122,7 +122,8 @@ def yt_cmd(*args):
     # Evita warning/auto-update e usa clientes alternativos quando o YouTube bloqueia
     cmd.append('--no-update')
     # Usa múltiplos clients para aumentar chance de sucesso contra bloqueios
-    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator,ios_creator,android_creator,tv,web_embedded,web_music'])
+    # Adicionados mais clients: tv_embedded, web_embedded, web_music, android_music, ios_music
+    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator,ios_creator,android_creator,tv,web_embedded,web_music,android_music,ios_music,tv_embedded'])
     # Cabeçalhos HTTP simulando browser real para reduzir bloqueios do YouTube
     cmd.extend(['--add-header', 'Accept-Language: en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7'])
     cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'])
@@ -134,13 +135,18 @@ def yt_cmd(*args):
     cmd.extend(['--add-header', 'Sec-Fetch-Site: none'])
     cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
     cmd.extend(['--add-header', 'Cache-Control: max-age=0'])
+    # Headers adicionais para simular browser real
+    cmd.extend(['--add-header', 'Sec-CH-UA: "Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"'])
+    cmd.extend(['--add-header', 'Sec-CH-UA-Mobile: ?0'])
+    cmd.extend(['--add-header', 'Sec-CH-UA-Platform: "Windows"'])
+    cmd.extend(['--add-header', 'DNT: 1'])
     # User-agent de browser atualizado para reduzir bloqueios do YouTube
     cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'])
     # Timeout maior para conexões lentas e playlists grandes
-    cmd.extend(['--socket-timeout', '30'])
-    cmd.extend(['--retries', '5'])
-    cmd.extend(['--fragment-retries', '5'])
-    cmd.extend(['--retry-sleep', '2'])
+    cmd.extend(['--socket-timeout', '60'])
+    cmd.extend(['--retries', '10'])
+    cmd.extend(['--fragment-retries', '10'])
+    cmd.extend(['--retry-sleep', '5'])
     cmd.extend(['--concurrent-fragments', '1'])
     # Suporte a cookies opcional (arquivo cookies.txt na raiz)
     cookies_path = os.path.join(BASE_DIR, 'cookies.txt')
