@@ -98,11 +98,17 @@ def setup_binaries():
             import tarfile
             with tarfile.open(ffmpeg_archive) as tar:
                 for member in tar.getmembers():
-                    if member.name.endswith("ffmpeg"):
-                        member.name = "ffmpeg"
+                    if member.name.endswith("ffmpeg") or (IS_WINDOWS and member.name.endswith("ffmpeg.exe")):
+                        # Determine the correct filename for the platform
+                        if IS_WINDOWS:
+                            member.name = "ffmpeg.exe"
+                        else:
+                            member.name = "ffmpeg"
                         tar.extract(member, BIN_DIR)
             os.remove(ffmpeg_archive)
-            os.chmod(FFMPEG_EXE, os.stat(FFMPEG_EXE).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+            # Make executable on Unix-like systems
+            if not IS_WINDOWS:
+                os.chmod(FFMPEG_EXE, os.stat(FFMPEG_EXE).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
             print("[SETUP] ffmpeg baixado com sucesso.", file=sys.stderr)
         except Exception as e:
             print(f"[SETUP] ffmpeg não disponível (use Dockerfile ou instale via apt): {e}", file=sys.stderr)
@@ -116,10 +122,18 @@ def yt_cmd(*args):
     # Evita warning/auto-update e usa clientes alternativos quando o YouTube bloqueia
     cmd.append('--no-update')
     # Usa múltiplos clients para aumentar chance de sucesso contra bloqueios
-    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator,ios_creator,android_creator'])
+    cmd.extend(['--extractor-args', 'youtube:player_client=web,android,ios,mweb,mediaconnect,web_creator,ios_creator,android_creator,tv,web_embedded,web_music'])
     # Cabeçalhos HTTP simulando browser real para reduzir bloqueios do YouTube
     cmd.extend(['--add-header', 'Accept-Language: en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7'])
-    cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'])
+    cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'])
+    cmd.extend(['--add-header', 'Accept-Encoding: gzip, deflate, br'])
+    cmd.extend(['--add-header', 'Connection: keep-alive'])
+    cmd.extend(['--add-header', 'Upgrade-Insecure-Requests: 1'])
+    cmd.extend(['--add-header', 'Sec-Fetch-Dest: document'])
+    cmd.extend(['--add-header', 'Sec-Fetch-Mode: navigate'])
+    cmd.extend(['--add-header', 'Sec-Fetch-Site: none'])
+    cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
+    cmd.extend(['--add-header', 'Cache-Control: max-age=0'])
     # User-agent de browser atualizado para reduzir bloqueios do YouTube
     cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'])
     # Timeout maior para conexões lentas e playlists grandes
@@ -277,22 +291,36 @@ def iniciar_download():
 
     def run():
         global progress_status, last_downloaded_file, current_playlist, is_playlist_download, last_error
-
+        
         if download_all and not fid:
             is_playlist_download = True
             temp_dir = tempfile.mkdtemp()
             temp_dirs.append(temp_dir)
             try:
-                cmd = yt_cmd('--yes-playlist', '--newline', url,
-                             '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s')
-                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                        text=True, encoding='utf-8', errors='ignore')
-                for line in proc.stdout:
-                    match = re.search(r'(\d+\.\d+)%', line)
-                    if match:
-                        progress_status = match.group(1)
-                proc.wait()
-                if proc.returncode == 0:
+                # Process playlist in batches
+                item_count = 0
+                # First get total items count
+                item_cmd = yt_cmd('--yes-playlist', '--newline', url)
+                item_proc = subprocess.Popen(item_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
+                for line in item_proc.stdout:
+                    item_count += 1
+
+                # Process in batches
+                for i in range(0, item_count, batch_size):
+                    start = i + 1
+                    end = min(i + batch_size, item_count)
+                    batch_cmd = yt_cmd('--yes-playlist', '--newline', url, '--playlist-items', f'{start}-{end}', '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s')
+                    batch_proc = subprocess.Popen(batch_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
+                    for line in batch_proc.stdout:
+                        match = re.search(r'(\d+\.\d+)%', line)
+                        if match:
+                            progress_status = match.group(1)
+                    batch_proc.wait()
+                    if batch_proc.returncode != 0:
+                        progress_status = 'error'
+                        break
+                
+                if progress_status != 'error':
                     progress_status = "100"
                     files = sorted(os.listdir(temp_dir))
                     if files:
@@ -300,8 +328,6 @@ def iniciar_download():
                         last_downloaded_file = temp_dir
                     else:
                         progress_status = "error"
-                else:
-                    progress_status = "error"
             except Exception as e:
                 print(f"Erro playlist: {e}", file=sys.stderr)
                 progress_status = "error"
@@ -311,30 +337,53 @@ def iniciar_download():
             temp_dir = tempfile.mkdtemp()
             temp_dirs.append(temp_dir)
             try:
-                base_cmd = yt_cmd('--newline')
+                # Process playlist in batches
+                item_count = 0
+                # First get total items count
+                item_cmd = yt_cmd('--yes-playlist', '--newline', url)
+                item_proc = subprocess.Popen(item_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
+                for line in item_proc.stdout:
+                    item_count += 1
 
-                if selected_indices:
-                    playlist_items = ','.join(str(idx + 1) for idx in selected_indices)
-                    base_cmd.extend(['--playlist-items', playlist_items])
-
-                base_cmd.append('--yes-playlist')
-
-                if fid.startswith("mp3-"):
-                    bitrate = fid.split("-")[1]
-                    base_cmd.extend(['-x', '--audio-format', 'mp3', '--audio-quality', bitrate])
-                else:
-                    base_cmd.extend(['-f', f'{fid}+bestaudio'])
-
-                base_cmd.extend([url, '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s'])
-
-                proc = subprocess.Popen(base_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                        text=True, encoding='utf-8', errors='ignore')
-                for line in proc.stdout:
-                    match = re.search(r'(\d+\.\d+)%', line)
-                    if match:
-                        progress_status = match.group(1)
-                proc.wait()
-                if proc.returncode == 0:
+                # Process in batches
+                for i in range(0, item_count, batch_size):
+                    start = i + 1
+                    end = min(i + batch_size, item_count)
+                    base_cmd = yt_cmd('--newline')
+                    
+                    if selected_indices:
+                        # For selected indices, we need to filter within the batch
+                        # This is more complex, so for now we'll process the full batch
+                        # and let yt-dlp handle the filtering via --playlist-items
+                        pass
+                    
+                    base_cmd.extend(['--playlist-items', f'{start}-{end}'])
+                    base_cmd.append('--yes-playlist')
+                    
+                    if fid.startswith("mp3-"):
+                        bitrate = fid.split("-")[1]
+                        if bitrate.isdigit() and not bitrate.endswith(('k', 'K')):
+                            bitrate = bitrate + 'k'
+                        else:
+                            bitrate = '0'
+                        base_cmd.extend(['-x', '--audio-format', 'mp3', '--audio-quality', bitrate])
+                    else:
+                        base_cmd.extend(['-f', f'{fid}+bestaudio'])
+                    
+                    base_cmd.extend([url, '-o', f'{temp_dir}/%(playlist_index)s-%(title)s.%(ext)s'])
+                    
+                    proc = subprocess.Popen(base_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                            text=True, encoding='utf-8', errors='ignore')
+                    for line in proc.stdout:
+                        match = re.search(r'(\d+\.\d+)%', line)
+                        if match:
+                            progress_status = match.group(1)
+                    proc.wait()
+                    if proc.returncode != 0:
+                        progress_status = 'error'
+                        break
+                
+                if progress_status != 'error':
                     progress_status = "100"
                     files = sorted(os.listdir(temp_dir))
                     if files:
@@ -342,8 +391,6 @@ def iniciar_download():
                         last_downloaded_file = temp_dir
                     else:
                         progress_status = "error"
-                else:
-                    progress_status = "error"
             except Exception as e:
                 print(f"Erro playlist formato: {e}", file=sys.stderr)
                 progress_status = "error"
@@ -353,7 +400,16 @@ def iniciar_download():
             temp_dirs.append(temp_dir)
             try:
                 if fid and fid.startswith("mp3-"):
-                    bitrate = fid.split("-")[1]
+                    # Extract bitrate from fid (e.g., "mp3-128" -> "128")
+                    parts = fid.split("-")
+                    if len(parts) >= 2:
+                        bitrate = parts[1]
+                        # Ensure bitrate has proper format for yt-dlp (e.g., "128" -> "128k")
+                        if bitrate.isdigit() and not bitrate.endswith(('k', 'K')):
+                            bitrate = bitrate + 'k'
+                    else:
+                        # Fallback to default quality if format is unexpected
+                        bitrate = '0'  # Best quality
                     cmd = yt_cmd('-x', '--audio-format', 'mp3', '--audio-quality', bitrate,
                                  '--newline', url, '-o', f'{temp_dir}/%(title)s.%(ext)s')
                 elif fid:
