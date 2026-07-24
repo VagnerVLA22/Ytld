@@ -113,23 +113,12 @@ def yt_cmd(*args):
     cmd = [YT_EXE]
     if os.path.exists(FFMPEG_EXE):
         cmd.extend(['--ffmpeg-location', os.path.dirname(FFMPEG_EXE)])
-    # Evita warning/auto-update
     cmd.append('--no-update')
-    # Cabeçalhos HTTP simulando browser real para reduzir bloqueios do YouTube
-    cmd.extend(['--add-header', 'Accept-Language: en-US,en;q=0.9'])
-    cmd.extend(['--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'])
-    cmd.extend(['--add-header', 'Sec-Fetch-Dest: document'])
-    cmd.extend(['--add-header', 'Sec-Fetch-Mode: navigate'])
-    cmd.extend(['--add-header', 'Sec-Fetch-Site: none'])
-    cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
-    # User-agent de browser atualizado para reduzir bloqueios do YouTube
-    cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'])
     # Timeout maior para conexões lentas e playlists grandes
     cmd.extend(['--socket-timeout', '30'])
     cmd.extend(['--retries', '5'])
     cmd.extend(['--fragment-retries', '5'])
     cmd.extend(['--retry-sleep', '2'])
-    cmd.extend(['--concurrent-fragments', '1'])
     cmd.extend(args)
     return cmd
 
@@ -161,6 +150,8 @@ def health():
         'ffmpeg_exists': os.path.exists(FFMPEG_EXE),
         'is_windows': IS_WINDOWS,
         'python': shutil.which('python') or shutil.which('python3'),
+        'deno': shutil.which('deno'),
+        'node': shutil.which('node'),
     }
     return jsonify(info)
 
