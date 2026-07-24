@@ -125,7 +125,7 @@ def yt_cmd(*args):
     cmd.extend(['--add-header', 'Sec-Fetch-Site: none'])
     cmd.extend(['--add-header', 'Sec-Fetch-User: ?1'])
     # User-agent de browser atualizado para reduzir bloqueios do YouTube
-    cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'])
+    cmd.extend(['--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'])
     # Timeout maior para conexões lentas e playlists grandes
     cmd.extend(['--socket-timeout', '30'])
     cmd.extend(['--retries', '5'])
@@ -287,7 +287,7 @@ def iniciar_download():
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         text=True, encoding='utf-8', errors='ignore')
                 for line in proc.stdout:
-                    match = re.search(r'(\d+\.\d+)%', line)
+                    match = re.search(r'(\d+\.?\d*)%', line)
                     if match:
                         progress_status = match.group(1)
                 proc.wait()
@@ -329,7 +329,7 @@ def iniciar_download():
                 proc = subprocess.Popen(base_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         text=True, encoding='utf-8', errors='ignore')
                 for line in proc.stdout:
-                    match = re.search(r'(\d+\.\d+)%', line)
+                    match = re.search(r'(\d+\.?\d*)%', line)
                     if match:
                         progress_status = match.group(1)
                 proc.wait()
@@ -366,13 +366,12 @@ def iniciar_download():
                 stderr_log = []
                 for line in proc.stdout:
                     stderr_log.append(line.strip())
-                    match = re.search(r'(\d+\.\d+)%', line)
+                    match = re.search(r'(\d+\.?\d*)%', line)
                     if match:
                         progress_status = match.group(1)
                 proc.wait()
                 if proc.returncode == 0:
                     progress_status = "100"
-                    last_error = None
                     files = os.listdir(temp_dir)
                     if files:
                         last_downloaded_file = os.path.join(temp_dir, files[0])
@@ -458,7 +457,7 @@ def download_file():
             return jsonify({'error': f'Erro ao enviar arquivo: {e}'}), 500
 
         def cleanup():
-            # Aguarda mais tempo para o send_file transmitir antes de apagar
+            global last_downloaded_file
             time.sleep(60)
             try:
                 temp_dir = os.path.dirname(last_downloaded_file)

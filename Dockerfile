@@ -2,11 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instala dependências do sistema
+# Instala Node.js (necessário para yt-dlp-ejs resolver challenges do YouTube)
+# e dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
     curl \
     ca-certificates \
+    gnupg \
+    ffmpeg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
