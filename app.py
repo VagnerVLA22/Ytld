@@ -176,73 +176,70 @@ def analisar():
 
     url = request.json.get('url')
     print(f"[ANALISAR] URL: {url}", file=sys.stderr)
-    print(f"[ANALISAR] YT_EXE={YT_EXE} existe={os.path.exists(YT_EXE)}", file=sys.stderr)
-    print(f"[ANALISAR] FFMPEG_EXE={FFMPEG_EXE} existe={os.path.exists(FFMPEG_EXE)}", file=sys.stderr)
 
     if not url:
         return jsonify({'error': 'URL não fornecida'}), 400
 
-    try:
-        # Primeiro: tentar como playlist (--flat-playlist)
-        cmd = yt_cmd('--flat-playlist', '-j', url)
-        print(f"[ANALISAR] Como playlist: {' '.join(cmd)}", file=sys.stderr)
+    is_playlist_url = 'list=' in url
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
-        print(f"[ANALISAR] rc={res.returncode} stdout={res.stdout[:200]} stderr={res.stderr[:300]}", file=sys.stderr)
-
-        if res.returncode != 0 or not res.stdout.strip():
-            return jsonify({'error': f'yt-dlp falhou (rc={res.returncode}): {res.stderr[:500]}'}), 400
-
-        lines = res.stdout.strip().split('\n')
-        entries = []
-        for line in lines:
-            line = line.strip()
-            if line:
-                try:
-                    entries.append(json.loads(line))
-                except:
-                    pass
-
-        if len(entries) > 1:
-            print(f"[ANALISAR] Playlist detectada: {len(entries)} vídeos", file=sys.stderr)
-            videos = []
-            for info in entries:
-                vid = info.get('id', '')
-                title = info.get('title', 'Sem título')
-                videos.append({'id': vid, 'title': title, 'url': f"https://youtube.com/watch?v={vid}"})
-
-            formats = []
-            try:
-                first_url = videos[0]['url']
-                fmt_res = subprocess.run(yt_cmd('--no-playlist', '-j', first_url),
-                                         capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=15)
-                if fmt_res.returncode == 0 and fmt_res.stdout.strip():
-                    first_info = json.loads(fmt_res.stdout)
-                    for f in first_info.get('formats', []):
-                        res_val = f.get('resolution') or f.get('format_note') or 'áudio'
-                        size = f.get('filesize') or f.get('filesize_approx') or 0
-                        size_mb = f"{size / (1024*1024):.1f}MB" if size > 0 else "?"
-                        formats.append({'id': f['format_id'], 'label': f"[{f.get('ext','?')}] {res_val} ({size_mb})"})
-            except Exception as e:
-                print(f"[ANALISAR] Erro ao obter formatos do primeiro vídeo: {e}", file=sys.stderr)
-
-            return jsonify({'type': 'playlist', 'count': len(videos), 'videos': videos, 'formats': formats[::-1]})
-
-        info = entries[0] if entries else {}
-
-    except Exception as e:
-        print(f"[ANALISAR] Tentando como vídeo único: {e}", file=sys.stderr)
+    if is_playlist_url:
         try:
-            res = subprocess.run(yt_cmd('--no-playlist', '-j', url),
-                                 capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
-            print(f"[ANALISAR] video rc={res.returncode} stderr={res.stderr[:300]}", file=sys.stderr)
+            cmd = yt_cmd('--flat-playlist', '-j', url)
+            print(f"[ANALISAR] Como playlist: {' '.join(cmd)}", file=sys.stderr)
+            res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
+            print(f"[ANALISAR] rc={res.returncode} stdout={res.stdout[:200]} stderr={res.stderr[:300]}", file=sys.stderr)
 
-            if res.returncode != 0:
-                return jsonify({'error': res.stderr or 'Erro ao analisar'}), 400
+            if res.returncode == 0 and res.stdout.strip():
+                lines = res.stdout.strip().split('\n')
+                entries = []
+                for line in lines:
+                    line = line.strip()
+                    if line:
+                        try:
+                            entries.append(json.loads(line))
+                        except:
+                            pass
 
-            info = json.loads(res.stdout)
-        except Exception as e2:
-            return jsonify({'error': f'Exceção: {str(e2)}'}), 500
+                if len(entries) > 1:
+                    print(f"[ANALISAR] Playlist: {len(entries)} vídeos", file=sys.stderr)
+                    videos = []
+                    for info in entries:
+                        vid = info.get('id', '')
+                        title = info.get('title', 'Sem título')
+                        videos.append({'id': vid, 'title': title, 'url': f"https://youtube.com/watch?v={vid}"})
+
+                    formats = []
+                    try:
+                        first_url = videos[0]['url']
+                        fmt_res = subprocess.run(yt_cmd('--no-playlist', '-j', first_url),
+                                                 capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
+                        if fmt_res.returncode == 0 and fmt_res.stdout.strip():
+                            first_info = json.loads(fmt_res.stdout)
+                            for f in first_info.get('formats', []):
+                                res_val = f.get('resolution') or f.get('format_note') or 'áudio'
+                                size = f.get('filesize') or f.get('filesize_approx') or 0
+                                size_mb = f"{size / (1024*1024):.1f}MB" if size > 0 else "?"
+                                formats.append({'id': f['format_id'], 'label': f"[{f.get('ext','?')}] {res_val} ({size_mb})"})
+                    except Exception as e:
+                        print(f"[ANALISAR] Erro formatos: {e}", file=sys.stderr)
+
+                    return jsonify({'type': 'playlist', 'count': len(videos), 'videos': videos, 'formats': formats[::-1]})
+        except Exception as e:
+            print(f"[ANALISAR] Playlist falhou: {e}", file=sys.stderr)
+
+    try:
+        cmd = yt_cmd('--no-playlist', '-j', url)
+        print(f"[ANALISAR] Como vídeo único: {' '.join(cmd)}", file=sys.stderr)
+        res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
+        print(f"[ANALISAR] rc={res.returncode} stderr={res.stderr[:300]}", file=sys.stderr)
+
+        if res.returncode != 0:
+            error_msg = res.stderr[:500] if res.stderr else 'Erro ao analisar'
+            return jsonify({'error': error_msg}), 400
+
+        info = json.loads(res.stdout)
+    except Exception as e2:
+        return jsonify({'error': f'Exceção: {str(e2)}'}), 500
 
     formats = []
     for f in info.get('formats', []):

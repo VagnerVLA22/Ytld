@@ -305,9 +305,6 @@
                         const errData = await res.json();
                         if (errData.error) msg = errData.error;
                     } catch (e) {}
-                    if (res.status === 400) {
-                        msg = 'YouTube bloqueou a requisição (erro 400). Tente novamente em alguns minutos ou use outro vídeo.';
-                    }
                     throw new Error(msg);
                 }
 
