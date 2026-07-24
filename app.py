@@ -114,6 +114,8 @@ def yt_cmd(*args):
     if os.path.exists(FFMPEG_EXE):
         cmd.extend(['--ffmpeg-location', os.path.dirname(FFMPEG_EXE)])
     cmd.append('--no-update')
+    if not IS_WINDOWS:
+        cmd.extend(['--js-runtimes', 'node'])
     # Timeout maior para conexões lentas e playlists grandes
     cmd.extend(['--socket-timeout', '30'])
     cmd.extend(['--retries', '5'])
