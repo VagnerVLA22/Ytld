@@ -2,26 +2,27 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instala Node.js (necessário para yt-dlp-ejs resolver challenges do YouTube)
-# e dependências do sistema
+# Instala dependências do sistema + Deno (runtime JS recomendado pelo yt-dlp para resolver challenges)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
-    gnupg \
     ffmpeg \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
+    unzip \
+    && curl -fsSL https://deno.land/install.sh | sh \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Deno no PATH
+ENV DENO_INSTALL="/root/.deno"
+ENV PATH="$DENO_INSTALL/bin:$PATH"
 
-# Instala yt-dlp e o solver EJS (necessário para descriptografar URLs do YouTube)
-RUN pip install --no-cache-dir yt-dlp yt-dlp-ejs
+# Verifica Deno
+RUN deno --version
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -U "yt-dlp[default]"
 
 COPY . .
 
-# Porta padrão (Railway/Koyeb usam $PORT)
 ENV PORT=5000
 EXPOSE $PORT
 
